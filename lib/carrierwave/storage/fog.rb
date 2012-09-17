@@ -148,15 +148,19 @@ module CarrierWave
         # [NilClass] no authenticated url available
         #
         def authenticated_url(options = {})
-          if ['AWS', 'Google'].include?(@uploader.fog_credentials[:provider])
+          provider = @uploader.fog_credentials[:provider]
+          expiration = ::Fog::Time.now + @uploader.fog_authenticated_url_expiration
+          if ['AWS', 'Google'].include?(provider)
             # avoid a get by using local references
             local_directory = connection.directories.new(:key => @uploader.fog_directory)
             local_file = local_directory.files.new(:key => path)
-            if @uploader.fog_credentials[:provider] == "AWS"
-              local_file.url(::Fog::Time.now + @uploader.fog_authenticated_url_expiration, options)
+            if provider == "AWS"
+              local_file.url(expiration, options)
             else
-              local_file.url(::Fog::Time.now + @uploader.fog_authenticated_url_expiration)
+              local_file.url(expiration)
             end
+          elsif provider == "Rackspace"
+            connection.get_object_https_url(@uploader.fog_directory, path, expiration, options)
           else
             nil
           end
